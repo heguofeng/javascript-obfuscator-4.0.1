@@ -144,24 +144,17 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
                             && NodeGuards.isLiteralNode(node)
                             && !NodeMetadata.isStringArrayCallLiteralNode(node)
                         ) {
-                            // return this.transformNode(node, parentNode);
-
-                            //是否是异步函数的标识
                             var in_async_function = false;
-                            //递归函数，检测节点所有上级节点，判断是否处于异步函数中
                             var point = "-";
                             function detect_async_function(node: ESTree.Node) {
                                 console.log(point, node.type);
                                 if (node.type == "FunctionDeclaration") {
                                     console.log(point, node.id?.name);
                                 }
-
-                                //是函数定义，并且是异步函数
                                 if ((node.type == "ArrowFunctionExpression" || node.type == "FunctionDeclaration" || node.type == "FunctionExpression") && node.async == true) {
                                     in_async_function = true;
                                     return;
                                 }
-                                //是否达到节点顶部。测试中发现node.parentNode永远存在，达顶点后上级顶点依然是Program
                                 if (node.type == "Program") {
                                     return;
                                 }
@@ -170,15 +163,12 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
                                     point = point + "-";
                                     detect_async_function(node.parentNode)
                                 } else {
-                                    //不能获得父节点，是异常的代码，跳过
                                     in_async_function = true;
                                     return;
                                 }
                             }
                             detect_async_function(node);
                             console.log(node.value, node.loc);
-
-                            //没有检测出异步函数，正常处理
                             if (in_async_function == false) {
                                 return this.transformNode(node, parentNode);
                             }
