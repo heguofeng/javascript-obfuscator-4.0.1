@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmitHelpers": true,
+    "importHelpers": true,
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "noImplicitAny": true
+  },
+  "include": [
+    "../**/*"
+  ]
+}
