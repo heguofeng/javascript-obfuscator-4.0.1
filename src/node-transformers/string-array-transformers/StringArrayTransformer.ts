@@ -101,19 +101,19 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
      * @param {TIdentifierNamesGeneratorFactory} identifierNamesGeneratorFactory
      * @param {TStringArrayCustomNodeFactory} stringArrayTransformerCustomNodeFactory
      */
-    public constructor (
+    public constructor(
         @inject(ServiceIdentifiers.IRandomGenerator) randomGenerator: IRandomGenerator,
         @inject(ServiceIdentifiers.IOptions) options: IOptions,
         @inject(ServiceIdentifiers.ILiteralNodesCacheStorage) literalNodesCacheStorage: ILiteralNodesCacheStorage,
         @inject(ServiceIdentifiers.IVisitedLexicalScopeNodesStackStorage) visitedLexicalScopeNodesStackStorage: IVisitedLexicalScopeNodesStackStorage,
         @inject(ServiceIdentifiers.IStringArrayStorage) stringArrayStorage: IStringArrayStorage,
         @inject(ServiceIdentifiers.IStringArrayScopeCallsWrappersDataStorage)
-            stringArrayScopeCallsWrappersDataStorage: IStringArrayScopeCallsWrappersDataStorage,
+        stringArrayScopeCallsWrappersDataStorage: IStringArrayScopeCallsWrappersDataStorage,
         @inject(ServiceIdentifiers.IStringArrayStorageAnalyzer) stringArrayStorageAnalyzer: IStringArrayStorageAnalyzer,
         @inject(ServiceIdentifiers.Factory__IIdentifierNamesGenerator)
-            identifierNamesGeneratorFactory: TIdentifierNamesGeneratorFactory,
+        identifierNamesGeneratorFactory: TIdentifierNamesGeneratorFactory,
         @inject(ServiceIdentifiers.Factory__IStringArrayCustomNode)
-            stringArrayTransformerCustomNodeFactory: TStringArrayCustomNodeFactory
+        stringArrayTransformerCustomNodeFactory: TStringArrayCustomNodeFactory
     ) {
         super(randomGenerator, options);
 
@@ -130,7 +130,7 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
      * @param {NodeTransformationStage} nodeTransformationStage
      * @returns {IVisitor | null}
      */
-    public getVisitor (nodeTransformationStage: NodeTransformationStage): IVisitor | null {
+    public getVisitor(nodeTransformationStage: NodeTransformationStage): IVisitor | null {
         switch (nodeTransformationStage) {
             case NodeTransformationStage.StringArray:
                 return {
@@ -144,7 +144,44 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
                             && NodeGuards.isLiteralNode(node)
                             && !NodeMetadata.isStringArrayCallLiteralNode(node)
                         ) {
-                            return this.transformNode(node, parentNode);
+                            // return this.transformNode(node, parentNode);
+
+                            //是否是异步函数的标识
+                            var in_async_function = false;
+                            //递归函数，检测节点所有上级节点，判断是否处于异步函数中
+                            var point = "-";
+                            function detect_async_function(node: ESTree.Node) {
+                                console.log(point, node.type);
+                                if (node.type == "FunctionDeclaration") {
+                                    console.log(point, node.id?.name);
+                                }
+
+                                //是函数定义，并且是异步函数
+                                if ((node.type == "ArrowFunctionExpression" || node.type == "FunctionDeclaration" || node.type == "FunctionExpression") && node.async == true) {
+                                    in_async_function = true;
+                                    return;
+                                }
+                                //是否达到节点顶部。测试中发现node.parentNode永远存在，达顶点后上级顶点依然是Program
+                                if (node.type == "Program") {
+                                    return;
+                                }
+
+                                if (node.parentNode) {
+                                    point = point + "-";
+                                    detect_async_function(node.parentNode)
+                                } else {
+                                    //不能获得父节点，是异常的代码，跳过
+                                    in_async_function = true;
+                                    return;
+                                }
+                            }
+                            detect_async_function(node);
+                            console.log(node.value, node.loc);
+
+                            //没有检测出异步函数，正常处理
+                            if (in_async_function == false) {
+                                return this.transformNode(node, parentNode);
+                            }
                         }
                     }
                 };
@@ -157,7 +194,7 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
     /**
      * @param {Program} programNode
      */
-    public prepareNode (programNode: ESTree.Program): void {
+    public prepareNode(programNode: ESTree.Program): void {
         if (this.options.stringArray) {
             this.stringArrayStorageAnalyzer.analyze(programNode);
         }
@@ -176,7 +213,7 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
      * @param {NodeGuards} parentNode
      * @returns {NodeGuards}
      */
-    public transformNode (literalNode: ESTree.Literal, parentNode: ESTree.Node): ESTree.Node {
+    public transformNode(literalNode: ESTree.Literal, parentNode: ESTree.Node): ESTree.Node {
         if (
             !NodeLiteralUtils.isStringLiteralNode(literalNode)
             || NodeLiteralUtils.isProhibitedLiteralNode(literalNode, parentNode)
@@ -213,10 +250,10 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
      * @param {IStringArrayStorageItemData} stringArrayStorageItemData
      * @returns {Expression}
      */
-    private getStringArrayCallNode (stringArrayStorageItemData: IStringArrayStorageItemData): ESTree.Expression {
+    private getStringArrayCallNode(stringArrayStorageItemData: IStringArrayStorageItemData): ESTree.Expression {
         const stringArrayScopeCallsWrapperData: IStringArrayScopeCallsWrapperData =
             this.getStringArrayScopeCallsWrapperData(stringArrayStorageItemData);
-        const {decodeKey, index} = stringArrayStorageItemData;
+        const { decodeKey, index } = stringArrayStorageItemData;
 
         const stringArrayCallCustomNode: ICustomNode<TInitialData<StringArrayCallNode>> =
             this.stringArrayTransformerCustomNodeFactory(StringArrayCustomNode.StringArrayCallNode);
@@ -241,7 +278,7 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
      * @param {IStringArrayStorageItemData} stringArrayStorageItemData
      * @returns {IStringArrayScopeCallsWrapperData}
      */
-    private getStringArrayScopeCallsWrapperData (
+    private getStringArrayScopeCallsWrapperData(
         stringArrayStorageItemData: IStringArrayStorageItemData
     ): IStringArrayScopeCallsWrapperData {
         return !this.options.stringArrayWrappersCount
@@ -253,10 +290,10 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
      * @param {IStringArrayStorageItemData} stringArrayStorageItemData
      * @returns {IStringArrayScopeCallsWrapperData}
      */
-    private getRootStringArrayScopeCallsWrapperData (
+    private getRootStringArrayScopeCallsWrapperData(
         stringArrayStorageItemData: IStringArrayStorageItemData
     ): IStringArrayScopeCallsWrapperData {
-        const {encoding} = stringArrayStorageItemData;
+        const { encoding } = stringArrayStorageItemData;
 
         const rootStringArrayCallsWrapperName: string = this.stringArrayStorage.getStorageCallsWrapperName(encoding);
 
@@ -271,10 +308,10 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
      * @param {IStringArrayStorageItemData} stringArrayStorageItemData
      * @returns {IStringArrayScopeCallsWrapperData}
      */
-    private getUpperStringArrayScopeCallsWrapperData (
+    private getUpperStringArrayScopeCallsWrapperData(
         stringArrayStorageItemData: IStringArrayStorageItemData
     ): IStringArrayScopeCallsWrapperData {
-        const {encoding} = stringArrayStorageItemData;
+        const { encoding } = stringArrayStorageItemData;
         const currentLexicalScopeBodyNode: TNodeWithLexicalScopeStatements | null =
             this.visitedLexicalScopeNodesStackStorage.getLastElement() ?? null;
 
@@ -301,11 +338,11 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
      * @param {IStringArrayStorageItemData} stringArrayStorageItemData
      * @returns {TStringArrayScopeCallsWrappersDataByEncoding}
      */
-    private getAndUpdateStringArrayScopeCallsWrappersDataByEncoding (
+    private getAndUpdateStringArrayScopeCallsWrappersDataByEncoding(
         currentLexicalScopeBodyNode: TNodeWithLexicalScopeStatements,
         stringArrayStorageItemData: IStringArrayStorageItemData,
     ): TStringArrayScopeCallsWrappersDataByEncoding {
-        const {encoding} = stringArrayStorageItemData;
+        const { encoding } = stringArrayStorageItemData;
         const stringArrayScopeCallsWrappersDataByEncoding: TStringArrayScopeCallsWrappersDataByEncoding =
             this.stringArrayScopeCallsWrappersDataStorage.get(currentLexicalScopeBodyNode)
             ?? {};
@@ -351,7 +388,7 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
     /**
      * @returns {number}
      */
-    private getStringArrayCallsWrapperShiftedIndex (): number {
+    private getStringArrayCallsWrapperShiftedIndex(): number {
         return this.options.stringArrayWrappersType === StringArrayWrappersType.Function
             ? this.randomGenerator.getRandomInteger(
                 StringArrayTransformer.minShiftedIndexValue,
@@ -363,7 +400,7 @@ export class StringArrayTransformer extends AbstractNodeTransformer {
     /**
      * @returns {IStringArrayScopeCallsWrapperParameterIndexesData | null}
      */
-    private getStringArrayCallsWrapperParameterIndexesData (): IStringArrayScopeCallsWrapperParameterIndexesData | null {
+    private getStringArrayCallsWrapperParameterIndexesData(): IStringArrayScopeCallsWrapperParameterIndexesData | null {
         if (this.options.stringArrayWrappersType !== StringArrayWrappersType.Function) {
             return null;
         }
